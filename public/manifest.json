@@ -1,0 +1,61 @@
+{
+  "id": "/",
+  "name": "المنصة الطبية السودانية الذكية",
+  "short_name": "رعايتي",
+  "description": "منصة طبية رقمية موحدة تخدم المرضى والأطباء والعيادات والمراكز الطبية في جميع ولايات السودان لحجز المواعيد وإدارة الملفات الطبية.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "dir": "rtl",
+  "lang": "ar",
+  "theme_color": "#0f766e",
+  "background_color": "#052946",
+  "categories": ["medical", "health"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "تطبيق المرضى",
+      "short_name": "المرضى",
+      "url": "/?app=patient",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "تطبيق الطبيب والعيادة",
+      "short_name": "الأطباء",
+      "url": "/?app=provider",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,493 @@
+{
+  "entities": {
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Central administration role marker document.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user account and PII isolated per user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "whatsappNotificationsEnabled": { "type": "boolean" },
+        "darkMode": { "type": "boolean" },
+        "favoriteDoctorUids": { "type": "array" },
+        "favoriteClinicIds": { "type": "array" },
+        "role": { "type": "string", "enum": ["patient", "doctor", "clinic_admin", "central_admin"] },
+        "state": { "type": "string", "maxLength": 80 },
+        "locality": { "type": "string", "maxLength": 80 },
+        "area": { "type": "string", "maxLength": 100 },
+        "accountStatus": { "type": "string", "enum": ["active", "suspended"] },
+        "suspensionReason": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "accountStatus", "createdAt", "updatedAt"]
+    },
+    "PatientMedicalProfile": {
+      "title": "PatientMedicalProfile",
+      "description": "Patient baseline medical profile and explicit doctor authorization list.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "dateOfBirth": { "type": "string", "maxLength": 20 },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "bloodType": { "type": "string", "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"] },
+        "heightCm": { "type": "number" },
+        "weightKg": { "type": "number" },
+        "allergies": { "type": "array" },
+        "chronicConditions": { "type": "array" },
+        "emergencyContact": { "type": "string", "maxLength": 160 },
+        "authorizedDoctorUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "bloodType", "allergies", "chronicConditions", "authorizedDoctorUids", "createdAt", "updatedAt"]
+    },
+    "DoctorProfile": {
+      "title": "DoctorProfile",
+      "description": "Doctor professional directory record gated by central admin approval.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "specialty": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "qualifications": { "type": "string", "minLength": 2, "maxLength": 300 },
+        "experienceYears": { "type": "number" },
+        "licenseNumber": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "state": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "locality": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "area": { "type": "string", "maxLength": 100 },
+        "workplaceName": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "clinicId": { "type": "string", "maxLength": 128 },
+        "consultationFeeSdg": { "type": "number" },
+        "services": { "type": "array" },
+        "workingDays": { "type": "array" },
+        "workingHours": { "type": "string", "maxLength": 120 },
+        "bio": { "type": "string", "maxLength": 800 },
+        "photoKey": { "type": "string", "maxLength": 60 },
+        "availabilityStatus": { "type": "string", "enum": ["available", "busy"] },
+        "approvalStatus": { "type": "string", "enum": ["pending", "approved", "rejected", "suspended"] },
+        "reviewReason": { "type": "string", "maxLength": 500 },
+        "reviewedByUid": { "type": "string", "maxLength": 128 },
+        "ratingAvg": { "type": "number" },
+        "ratingCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "ownerUid",
+        "fullName",
+        "gender",
+        "specialty",
+        "qualifications",
+        "experienceYears",
+        "licenseNumber",
+        "state",
+        "locality",
+        "workplaceName",
+        "consultationFeeSdg",
+        "services",
+        "workingDays",
+        "workingHours",
+        "approvalStatus",
+        "ratingAvg",
+        "ratingCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ClinicCenter": {
+      "title": "ClinicCenter",
+      "description": "Medical clinic or center profile isolated per clinic and gated by central approval.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "centerType": { "type": "string", "enum": ["clinic", "medical_center", "hospital"] },
+        "licenseNumber": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "state": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "locality": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "area": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 250 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "services": { "type": "array" },
+        "workingHours": { "type": "string", "maxLength": 120 },
+        "photoKey": { "type": "string", "maxLength": 60 },
+        "approvalStatus": { "type": "string", "enum": ["pending", "approved", "rejected", "suspended"] },
+        "reviewReason": { "type": "string", "maxLength": 500 },
+        "reviewedByUid": { "type": "string", "maxLength": 128 },
+        "ratingAvg": { "type": "number" },
+        "ratingCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerUid",
+        "name",
+        "centerType",
+        "licenseNumber",
+        "state",
+        "locality",
+        "services",
+        "workingHours",
+        "approvalStatus",
+        "ratingAvg",
+        "ratingCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ClinicStaffMember": {
+      "title": "ClinicStaffMember",
+      "description": "Staff and affiliated doctors belonging exclusively to a clinic.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "clinicId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "staffRole": { "type": "string", "enum": ["manager", "receptionist", "nurse", "doctor"] },
+        "doctorId": { "type": "string", "maxLength": 128 },
+        "permissions": { "type": "array" },
+        "status": { "type": "string", "enum": ["active", "revoked"] },
+        "addedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "clinicId", "fullName", "staffRole", "permissions", "status", "addedByUid", "createdAt", "updatedAt"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Patient appointment booking with an approved doctor or clinic.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "patientName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "doctorUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "doctorName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "doctorSpecialty": { "type": "string", "maxLength": 100 },
+        "clinicId": { "type": "string", "maxLength": 128 },
+        "clinicName": { "type": "string", "maxLength": 160 },
+        "clinicOwnerUid": { "type": "string", "maxLength": 128 },
+        "state": { "type": "string", "maxLength": 80 },
+        "locality": { "type": "string", "maxLength": 80 },
+        "appointmentDate": { "type": "string", "maxLength": 20 },
+        "timeSlot": { "type": "string", "maxLength": 40 },
+        "visitType": { "type": "string", "enum": ["in_person", "follow_up", "nutrition_consult"] },
+        "reason": { "type": "string", "maxLength": 500 },
+        "feeSdg": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "arrived", "completed", "no_show", "cancelled"] },
+        "checkedInAt": { "type": "string", "format": "date-time" },
+        "cancellationReason": { "type": "string", "maxLength": 300 },
+        "reviewed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "patientUid",
+        "patientName",
+        "doctorUid",
+        "doctorName",
+        "doctorSpecialty",
+        "state",
+        "locality",
+        "appointmentDate",
+        "timeSlot",
+        "visitType",
+        "feeSdg",
+        "status",
+        "reviewed",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "EhrRecord": {
+      "title": "EhrRecord",
+      "description": "Electronic Health Record entry including consultation, diagnosis, prescription, vitals, and nutrition plan.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "patientName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "doctorUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "doctorName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "clinicId": { "type": "string", "maxLength": 128 },
+        "clinicName": { "type": "string", "maxLength": 160 },
+        "appointmentId": { "type": "string", "maxLength": 128 },
+        "recordType": { "type": "string", "enum": ["consultation", "diagnosis", "prescription", "measurement", "nutrition_plan"] },
+        "title": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "chiefComplaint": { "type": "string", "maxLength": 500 },
+        "diagnosis": { "type": "string", "maxLength": 600 },
+        "clinicalNotes": { "type": "string", "maxLength": 2000 },
+        "medications": { "type": "array" },
+        "vitals": { "type": "object" },
+        "nutritionPlan": { "type": "object" },
+        "sharedWithDoctorUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "patientUid",
+        "patientName",
+        "doctorUid",
+        "doctorName",
+        "recordType",
+        "title",
+        "medications",
+        "sharedWithDoctorUids",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ServiceReview": {
+      "title": "ServiceReview",
+      "description": "Patient rating and feedback submitted after a completed appointment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "appointmentId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "patientUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "patientName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "doctorUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "clinicId": { "type": "string", "maxLength": 128 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "maxLength": 600 },
+        "clinicRating": { "type": "number" },
+        "clinicComment": { "type": "string", "maxLength": 600 },
+        "status": { "type": "string", "enum": ["published", "hidden"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "appointmentId", "patientUid", "patientName", "doctorUid", "rating", "status", "createdAt"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "User complaint or violation report reviewed by central administration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reporterUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "reporterName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "reporterRole": { "type": "string", "enum": ["patient", "doctor", "clinic_admin", "central_admin"] },
+        "targetType": { "type": "string", "enum": ["doctor", "clinic", "platform"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "targetName": { "type": "string", "maxLength": 160 },
+        "subject": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "description": { "type": "string", "minLength": 5, "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["open", "investigating", "resolved", "dismissed"] },
+        "adminResolution": { "type": "string", "maxLength": 600 },
+        "resolvedByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "reporterUid", "reporterName", "reporterRole", "targetType", "subject", "description", "status", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and governance audit trail entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "actorName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "actorRole": { "type": "string", "enum": ["patient", "doctor", "clinic_admin", "central_admin"] },
+        "action": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "targetCollection": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 600 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "actorUid", "actorName", "actorRole", "action", "targetCollection", "targetId", "details", "createdAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Secure patient-doctor messaging thread metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "doctorUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "doctorName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "doctorSpecialty": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "appointmentId": { "type": "string", "maxLength": 128 },
+        "appointmentDate": { "type": "string", "maxLength": 20 },
+        "lastMessageText": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "lastSenderUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "patientUid",
+        "patientName",
+        "doctorUid",
+        "doctorName",
+        "doctorSpecialty",
+        "lastMessageText",
+        "lastSenderUid",
+        "lastMessageAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual encrypted-in-transit Firestore message inside a patient-doctor conversation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "conversationId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "doctorUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "senderRole": { "type": "string", "enum": ["patient", "doctor"] },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "appointmentRef": { "type": "string", "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "conversationId",
+        "patientUid",
+        "doctorUid",
+        "senderUid",
+        "senderName",
+        "senderRole",
+        "text",
+        "createdAt"
+      ]
+    },
+    "PatientMedication": {
+      "title": "PatientMedication",
+      "description": "Patient tracked medications with status and scheduled dose reminder times.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "dosage": { "type": "string", "maxLength": 120 },
+        "frequency": { "type": "string", "maxLength": 120 },
+        "scheduleTimes": { "type": "array" },
+        "status": { "type": "string", "enum": ["active", "paused", "stopped"] },
+        "prescribedBy": { "type": "string", "maxLength": 120 },
+        "sourceRecordId": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 400 },
+        "reminderEnabled": { "type": "boolean" },
+        "lastTakenKey": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "patientUid",
+        "name",
+        "dosage",
+        "frequency",
+        "scheduleTimes",
+        "status",
+        "reminderEnabled",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BookedSlot": {
+      "title": "BookedSlot",
+      "description": "Zero-PII public slot availability record used to determine 24h open slots and prevent double-booking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "doctorUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "appointmentDate": { "type": "string", "minLength": 8, "maxLength": 20 },
+        "timeSlot": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "appointmentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "doctorUid", "appointmentDate", "timeSlot", "appointmentId", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Central administration privileges registry."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Isolated private PII and account roles for each authenticated user."
+    },
+    "/patients/{patientId}": {
+      "schema": { "$ref": "#/entities/PatientMedicalProfile" },
+      "description": "Protected baseline medical records and doctor access consent."
+    },
+    "/doctors/{doctorId}": {
+      "schema": { "$ref": "#/entities/DoctorProfile" },
+      "description": "Professional doctor profiles; publicly searchable only when approvalStatus is approved."
+    },
+    "/clinics/{clinicId}": {
+      "schema": { "$ref": "#/entities/ClinicCenter" },
+      "description": "Medical clinics and centers; publicly searchable only when approvalStatus is approved."
+    },
+    "/clinics/{clinicId}/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/ClinicStaffMember" },
+      "description": "Clinic-isolated staff and affiliated doctors subcollection."
+    },
+    "/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Appointments between patients and approved doctors/clinics."
+    },
+    "/bookedSlots/{slotId}": {
+      "schema": { "$ref": "#/entities/BookedSlot" },
+      "description": "Zero-PII occupied time slots used for real-time 24h availability filtering."
+    },
+    "/ehrRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/EhrRecord" },
+      "description": "Electronic Health Records with patient ownership and authorized doctor sharing."
+    },
+    "/patientMedications/{medicationId}": {
+      "schema": { "$ref": "#/entities/PatientMedication" },
+      "description": "Patient-managed current medications, status lifecycle, and dose reminder schedules."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/ServiceReview" },
+      "description": "Post-visit patient ratings and feedback."
+    },
+    "/complaints/{complaintId}": {
+      "schema": { "$ref": "#/entities/Complaint" },
+      "description": "User complaints and violation reports handled by central admin."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Append-only immutable audit trail of critical platform events."
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Private messaging threads between a patient and an approved doctor."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Messages belonging exclusively to a patient-doctor conversation."
+    }
+  }
+}

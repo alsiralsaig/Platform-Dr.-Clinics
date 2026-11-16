@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-display: 'Cairo', system-ui, -apple-system, sans-serif;
+    --font-body: 'IBM Plex Sans Arabic', 'Cairo', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  }
+
+  html {
+    font-family: var(--font-body);
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono, .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  html.dark, html.dark body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  body:has(#medical-pdf-sheet) * {
+    visibility: hidden;
+  }
+  body:has(#medical-pdf-sheet) #medical-pdf-sheet,
+  body:has(#medical-pdf-sheet) #medical-pdf-sheet * {
+    visibility: visible;
+  }
+  body:has(#medical-pdf-sheet) #medical-pdf-sheet {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  body:not(:has(#medical-pdf-sheet)):has(#patient-ehr-printable) * {
+    visibility: hidden;
+  }
+  body:not(:has(#medical-pdf-sheet)):has(#patient-ehr-printable) #patient-ehr-printable,
+  body:not(:has(#medical-pdf-sheet)):has(#patient-ehr-printable) #patient-ehr-printable * {
+    visibility: visible;
+  }
+  body:not(:has(#medical-pdf-sheet)):has(#patient-ehr-printable) #patient-ehr-printable .no-print {
+    display: none !important;
+  }
+  body:not(:has(#medical-pdf-sheet)):has(#patient-ehr-printable) #patient-ehr-printable {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 16px;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+}
+

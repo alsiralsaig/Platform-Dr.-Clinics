@@ -1,0 +1,6 @@
+{
+  "name": "المنصة الطبية السودانية الذكية",
+  "description": "منصة طبية رقمية موحدة تخدم المرضى والأطباء والعيادات والمراكز الطبية في جميع ولايات السودان لإدارة المواعيد والملفات الطبية والاعتماد المركزي.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
