@@ -439,6 +439,16 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function bookingSlotCode(timeSlot) {
+      return timeSlot == '09:00 صباحاً' ? 't0' :
+        timeSlot == '10:00 صباحاً' ? 't1' :
+        timeSlot == '11:00 صباحاً' ? 't2' :
+        timeSlot == '12:30 ظهراً' ? 't3' :
+        timeSlot == '04:00 عصراً' ? 't4' :
+        timeSlot == '05:30 مساءً' ? 't5' :
+        timeSlot == '07:00 مساءً' ? 't6' : '';
+    }
+
     function isValidBookedSlot(data) {
       return data.keys().hasAll([
         'id', 'doctorUid', 'appointmentDate', 'timeSlot', 'appointmentId', 'updatedAt'
@@ -448,7 +458,9 @@ service cloud.firestore {
         ]) &&
         isValidId(data.id) &&
         isValidId(data.doctorUid) &&
-        isValidString(data.appointmentDate, 8, 20) &&
+        data.appointmentDate is string &&
+        data.appointmentDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        bookingSlotCode(data.timeSlot) != '' &&
         isValidString(data.timeSlot, 2, 40) &&
         isValidId(data.appointmentId) &&
         data.updatedAt is timestamp;
@@ -702,6 +714,8 @@ service cloud.firestore {
         incoming().status == 'pending' &&
         !('checkedInAt' in incoming()) &&
         incoming().reviewed == false &&
+        incoming().appointmentDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        bookingSlotCode(incoming().timeSlot) != '' &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
         get(/databases/$(database)/documents/doctors/$(incoming().doctorUid)).data.approvalStatus == 'approved' &&
@@ -1049,7 +1063,7 @@ service cloud.firestore {
         isNotSuspended() &&
         isValidBookedSlot(incoming()) &&
         incoming().id == slotId &&
-        slotId == ('slot_' + incoming().appointmentId) &&
+        slotId == ('slot_' + incoming().doctorUid + '_' + incoming().appointmentDate + '_' + bookingSlotCode(incoming().timeSlot)) &&
         incoming().updatedAt == request.time &&
         getAfter(/databases/$(database)/documents/appointments/$(incoming().appointmentId)).data.patientUid == request.auth.uid &&
         getAfter(/databases/$(database)/documents/appointments/$(incoming().appointmentId)).data.doctorUid == incoming().doctorUid &&

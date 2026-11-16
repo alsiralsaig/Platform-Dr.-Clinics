@@ -8,6 +8,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -65,6 +66,25 @@ function cleanStringList(items: string[] | undefined, maxItems: number, maxLen =
     .map((s) => s.trim().slice(0, maxLen))
     .filter((s) => s.length > 0)
     .slice(0, maxItems);
+}
+
+// Stable slot codes keep Firestore document IDs ASCII-safe and identical in rules.
+const BOOKING_SLOT_CODES: Record<string, string> = {
+  '09:00 صباحاً': 't0',
+  '10:00 صباحاً': 't1',
+  '11:00 صباحاً': 't2',
+  '12:30 ظهراً': 't3',
+  '04:00 عصراً': 't4',
+  '05:30 مساءً': 't5',
+  '07:00 مساءً': 't6',
+};
+
+function getBookedSlotId(doctorUid: string, appointmentDate: string, timeSlot: string): string {
+  const code = BOOKING_SLOT_CODES[timeSlot];
+  if (!code || !/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate)) {
+    throw new Error('التاريخ أو الفترة الزمنية غير صالحة للحجز.');
+  }
+  return `slot_${doctorUid}_${appointmentDate}_${code}`;
 }
 
 export async function writeAuditLog(params: {
@@ -775,41 +795,51 @@ export async function createAppointment(
   const id = makeSafeId('apt');
   const cleanDate = clampStr(input.appointmentDate, 20);
   const cleanSlot = clampStr(input.timeSlot, 40);
-  const slotId = `slot_${id}`;
+  const slotId = getBookedSlotId(doctor.uid, cleanDate, cleanSlot);
+  const appointmentRef = doc(db, 'appointments', id);
+  const slotRef = doc(db, 'bookedSlots', slotId);
+
   try {
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'appointments', id), {
-      id,
-      patientUid,
-      patientName: clampStr(patientName, 120),
-      doctorUid: doctor.uid,
-      doctorName: clampStr(doctor.fullName, 120),
-      doctorSpecialty: clampStr(doctor.specialty, 100),
-      clinicId: clampStr(doctor.clinicId, 128),
-      clinicName: clampStr(doctor.workplaceName, 160),
-      clinicOwnerUid: clampStr(clinicOwnerUid, 128),
-      state: clampStr(doctor.state, 80),
-      locality: clampStr(doctor.locality, 80),
-      appointmentDate: cleanDate,
-      timeSlot: cleanSlot,
-      visitType: input.visitType,
-      reason: clampStr(input.reason, 500),
-      feeSdg: doctor.consultationFeeSdg,
-      status: 'pending' as AppointmentStatus,
-      cancellationReason: '',
-      reviewed: false,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    await runTransaction(db, async (transaction) => {
+      const occupied = await transaction.get(slotRef);
+      if (occupied.exists()) {
+        throw new Error('الفترة الزمنية حُجزت للتو. اختر وقتاً آخر.');
+      }
+
+      transaction.set(appointmentRef, {
+        id,
+        patientUid,
+        patientName: clampStr(patientName, 120),
+        doctorUid: doctor.uid,
+        doctorName: clampStr(doctor.fullName, 120),
+        doctorSpecialty: clampStr(doctor.specialty, 100),
+        clinicId: clampStr(doctor.clinicId, 128),
+        clinicName: clampStr(doctor.workplaceName, 160),
+        clinicOwnerUid: clampStr(clinicOwnerUid, 128),
+        state: clampStr(doctor.state, 80),
+        locality: clampStr(doctor.locality, 80),
+        appointmentDate: cleanDate,
+        timeSlot: cleanSlot,
+        visitType: input.visitType,
+        reason: clampStr(input.reason, 500),
+        feeSdg: doctor.consultationFeeSdg,
+        status: 'pending' as AppointmentStatus,
+        cancellationReason: '',
+        reviewed: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // The appointment and canonical time-slot lock commit atomically.
+      transaction.set(slotRef, {
+        id: slotId,
+        appointmentId: id,
+        doctorUid: doctor.uid,
+        appointmentDate: cleanDate,
+        timeSlot: cleanSlot,
+        updatedAt: serverTimestamp(),
+      });
     });
-    batch.set(doc(db, 'bookedSlots', slotId), {
-      id: slotId,
-      appointmentId: id,
-      doctorUid: doctor.uid,
-      appointmentDate: cleanDate,
-      timeSlot: cleanSlot,
-      createdAt: serverTimestamp(),
-    });
-    await batch.commit();
 
     await writeAuditLog({
       actorUid: patientUid,
@@ -822,6 +852,7 @@ export async function createAppointment(
     });
     return id;
   } catch (error) {
+    if (error instanceof Error && error.message.includes('حُجزت للتو')) throw error;
     handleFirestoreError(error, OperationType.CREATE, `appointments/${id}`);
   }
 }
@@ -879,20 +910,39 @@ export async function updateAppointmentStatus(
   status: AppointmentStatus,
   cancellationReason = ''
 ): Promise<void> {
+  const appointmentRef = doc(db, 'appointments', appointmentId);
   try {
-    await updateDoc(doc(db, 'appointments', appointmentId), {
-      status,
-      cancellationReason: clampStr(cancellationReason, 300),
-      updatedAt: serverTimestamp(),
-    });
+    await runTransaction(db, async (transaction) => {
+      const appointmentSnapshot = await transaction.get(appointmentRef);
+      if (!appointmentSnapshot.exists()) throw new Error('الموعد غير موجود.');
 
-    if (status === 'cancelled' || status === 'no_show') {
-      try {
-        await deleteDoc(doc(db, 'bookedSlots', `slot_${appointmentId}`));
-      } catch {
-        // Legacy appointments created prior to bookedSlots may not have a slot lock doc
-      }
-    }
+      const appointment = appointmentSnapshot.data() as Appointment;
+      const shouldReleaseSlot = status === 'cancelled' || status === 'no_show';
+      const canonicalSlotRef = shouldReleaseSlot
+        ? doc(db, 'bookedSlots', getBookedSlotId(
+            appointment.doctorUid,
+            appointment.appointmentDate,
+            appointment.timeSlot
+          ))
+        : null;
+      const legacySlotRef = shouldReleaseSlot
+        ? doc(db, 'bookedSlots', `slot_${appointmentId}`)
+        : null;
+
+      // Read every document before writing so Firestore can commit this atomically.
+      const canonicalSlot = canonicalSlotRef ? await transaction.get(canonicalSlotRef) : null;
+      const legacySlot = legacySlotRef && legacySlotRef.path !== canonicalSlotRef?.path
+        ? await transaction.get(legacySlotRef)
+        : null;
+
+      transaction.update(appointmentRef, {
+        status,
+        cancellationReason: clampStr(cancellationReason, 300),
+        updatedAt: serverTimestamp(),
+      });
+      if (canonicalSlot?.exists() && canonicalSlotRef) transaction.delete(canonicalSlotRef);
+      if (legacySlot?.exists() && legacySlotRef) transaction.delete(legacySlotRef);
+    });
 
     await writeAuditLog({
       actorUid,
@@ -904,6 +954,7 @@ export async function updateAppointmentStatus(
       details: cancellationReason ? `السبب: ${cancellationReason}` : `تغيير الحالة إلى ${status}`,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === 'الموعد غير موجود.') throw error;
     handleFirestoreError(error, OperationType.UPDATE, `appointments/${appointmentId}`);
   }
 }
@@ -1512,284 +1563,6 @@ export async function adminToggleReviewVisibility(
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `reviews/${reviewId}`);
-  }
-}
-
-export async function seedSudanPlatformData(adminUid: string, adminName: string): Promise<void> {
-  try {
-    const batch = writeBatch(db);
-
-    const clinicsSeed = [
-      {
-        id: 'clinic_khartoum_nutricare',
-        ownerUid: adminUid,
-        name: 'مركز النيل التخصصي للطب الباطني والتغذية العلاجية',
-        centerType: 'medical_center',
-        licenseNumber: 'SD-KRT-MC-1042',
-        state: 'الخرطوم',
-        locality: 'الخرطوم',
-        area: 'العمارات شارع 15',
-        address: 'العمارات، مربع 9، الخرطوم',
-        phone: '+249 91 230 4411',
-        services: ['استشارات الباطنية والسكري', 'برامج التغذية العلاجية', 'متابعة ضغط الدم', 'المعمل التشخيصي'],
-        workingHours: '08:30 صباحاً - 09:00 مساءً',
-        photoKey: 'clinic',
-        approvalStatus: 'approved',
-        reviewReason: 'مكتمل التراخيص الصحية بولاية الخرطوم',
-        reviewedByUid: adminUid,
-        ratingAvg: 4.9,
-        ratingCount: 38,
-      },
-      {
-        id: 'clinic_gezira_madani',
-        ownerUid: adminUid,
-        name: 'مجمع الجزيرة التخصصي لطب الأسرة والأطفال',
-        centerType: 'medical_center',
-        licenseNumber: 'SD-GZ-MC-2018',
-        state: 'الجزيرة',
-        locality: 'ود مدني الكبرى',
-        area: 'حي المطار',
-        address: 'شارع النيل، ود مدني',
-        phone: '+249 91 540 8820',
-        services: ['عيادة الأطفال وحديثي الولادة', 'طب الأسرة', 'النساء والتوليد', 'التحصين والمتابعة'],
-        workingHours: '09:00 صباحاً - 08:00 مساءً',
-        photoKey: 'clinic',
-        approvalStatus: 'approved',
-        reviewReason: 'تم التحقق من السجل الطبي لولاية الجزيرة',
-        reviewedByUid: adminUid,
-        ratingAvg: 4.8,
-        ratingCount: 24,
-      },
-      {
-        id: 'clinic_redsea_portsudan',
-        ownerUid: adminUid,
-        name: 'عيادات الميناء التخصصية للقلب والباطنية',
-        centerType: 'clinic',
-        licenseNumber: 'SD-RS-CL-3091',
-        state: 'البحر الأحمر',
-        locality: 'بورتسودان',
-        area: 'حي المطار - ديم مدينة',
-        address: 'وسط بورتسودان، جوار المستشفى التعليمي',
-        phone: '+249 92 110 7744',
-        services: ['تخطيط القلب', 'أمراض القلب والأوعية', 'الباطنية والجهاز الهضمي'],
-        workingHours: '09:00 صباحاً - 08:30 مساءً',
-        photoKey: 'clinic',
-        approvalStatus: 'approved',
-        reviewReason: 'ترخيص ساري ومعتمد من الإدارة المركزية',
-        reviewedByUid: adminUid,
-        ratingAvg: 4.7,
-        ratingCount: 19,
-      },
-      {
-        id: 'clinic_rivernile_pending',
-        ownerUid: adminUid,
-        name: 'مركز عطبرة الجراحي التخصصي',
-        centerType: 'hospital',
-        licenseNumber: 'SD-RN-HS-4410',
-        state: 'نهر النيل',
-        locality: 'عطبرة',
-        area: 'حي الداخلة',
-        address: 'شارع المستشفى، عطبرة',
-        phone: '+249 91 887 2201',
-        services: ['الجراحة العامة', 'العظام والمفاصل', 'الطوارئ والمناظير'],
-        workingHours: 'على مدار 24 ساعة',
-        photoKey: 'clinic',
-        approvalStatus: 'pending',
-        reviewReason: '',
-        reviewedByUid: '',
-        ratingAvg: 0,
-        ratingCount: 0,
-      },
-    ];
-
-    for (const c of clinicsSeed) {
-      batch.set(doc(db, 'clinics', c.id), {
-        ...c,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    const doctorsSeed = [
-      {
-        uid: 'doc_sd_amna_cardio',
-        ownerUid: adminUid,
-        fullName: 'د. آمنة محمد الطيب',
-        gender: 'female',
-        specialty: 'أمراض القلب والأوعية الدموية',
-        qualifications: 'دكتوراه أمراض القلب - المجلس الطبي السوداني، زمالة الكلية الملكية',
-        experienceYears: 14,
-        licenseNumber: 'SMC-11948',
-        state: 'الخرطوم',
-        locality: 'الخرطوم',
-        area: 'العمارات شارع 15',
-        workplaceName: 'مركز النيل التخصصي للطب الباطني والتغذية العلاجية',
-        clinicId: 'clinic_khartoum_nutricare',
-        consultationFeeSdg: 25000,
-        services: ['تخطيط القلب الكهربائي', 'الإيكو القلبي', 'متابعة ارتفاع ضغط الدم'],
-        workingDays: ['السبت', 'الأحد', 'الثلاثاء', 'الأربعاء'],
-        workingHours: '09:00 صباحاً - 02:00 ظهراً',
-        bio: 'استشارية أمراض القلب والأوعية الدموية، خبرة واسعة في تشخيص وعلاج ارتفاع ضغط الدم وقصور القلب في السودان.',
-        photoKey: 'female',
-        approvalStatus: 'approved',
-        reviewReason: 'تم التحقق من قيد المجلس الطبي السوداني',
-        reviewedByUid: adminUid,
-        ratingAvg: 4.9,
-        ratingCount: 31,
-      },
-      {
-        uid: 'doc_sd_ahmed_nutri',
-        ownerUid: adminUid,
-        fullName: 'د. أحمد السر التوم',
-        gender: 'male',
-        specialty: 'التغذية العلاجية والسكري',
-        qualifications: 'ماجستير التغذية الإكلينيكية والسكري - جامعة الخرطوم',
-        experienceYears: 11,
-        licenseNumber: 'SMC-14205',
-        state: 'الخرطوم',
-        locality: 'أم درمان',
-        area: 'المهندسين',
-        workplaceName: 'مركز النيل التخصصي للطب الباطني والتغذية العلاجية',
-        clinicId: 'clinic_khartoum_nutricare',
-        consultationFeeSdg: 18000,
-        services: ['خطط التغذية العلاجية لمرضى السكري', 'إدارة الوزن والرياضة العلاجية', 'متابعة السمنة والأيض'],
-        workingDays: ['الأحد', 'الاثنين', 'الأربعاء', 'الخميس'],
-        workingHours: '04:00 عصراً - 08:30 مساءً',
-        bio: 'متخصص في برامج التغذية العلاجية والسكري وخطط النشاط البدني المخصصة وفق النمط الغذائي السوداني.',
-        photoKey: 'male',
-        approvalStatus: 'approved',
-        reviewReason: 'معتمد وفق معايير التغذية العلاجية',
-        reviewedByUid: adminUid,
-        ratingAvg: 4.8,
-        ratingCount: 27,
-      },
-      {
-        uid: 'doc_sd_salma_peds',
-        ownerUid: adminUid,
-        fullName: 'د. سلمى عبد الله النور',
-        gender: 'female',
-        specialty: 'طب الأطفال وحديثي الولادة',
-        qualifications: 'اختصاصي طب الأطفال - جامعة الجزيرة، عضوية جمعية أطباء الأطفال السودانية',
-        experienceYears: 9,
-        licenseNumber: 'SMC-16832',
-        state: 'الجزيرة',
-        locality: 'ود مدني الكبرى',
-        area: 'حي المطار',
-        workplaceName: 'مجمع الجزيرة التخصصي لطب الأسرة والأطفال',
-        clinicId: 'clinic_gezira_madani',
-        consultationFeeSdg: 15000,
-        services: ['متابعة نمو الأطفال', 'أمراض الجهاز التنفسي للأطفال', 'استشارات تغذية الرضع'],
-        workingDays: ['السبت', 'الاثنين', 'الثلاثاء', 'الخميس'],
-        workingHours: '09:30 صباحاً - 03:00 عصراً',
-        bio: 'طبيبة أطفال متخصصة في رعاية حديثي الولادة ومتابعة النمو والتغذية الوقائية للأطفال بولاية الجزيرة.',
-        photoKey: 'female',
-        approvalStatus: 'approved',
-        reviewReason: 'ترخيص مزاولة ساري ومعتمد',
-        reviewedByUid: adminUid,
-        ratingAvg: 4.9,
-        ratingCount: 22,
-      },
-      {
-        uid: 'doc_sd_mohamed_internal',
-        ownerUid: adminUid,
-        fullName: 'د. محمد الفاتح إدريس',
-        gender: 'male',
-        specialty: 'الطب الباطني',
-        qualifications: 'دكتوراه الطب الباطني - البورد السوداني للتخصصات الطبية',
-        experienceYears: 12,
-        licenseNumber: 'SMC-13077',
-        state: 'البحر الأحمر',
-        locality: 'بورتسودان',
-        area: 'حي المطار - ديم مدينة',
-        workplaceName: 'عيادات الميناء التخصصية للقلب والباطنية',
-        clinicId: 'clinic_redsea_portsudan',
-        consultationFeeSdg: 20000,
-        services: ['تشخيص الأمراض الباطنية المزمنة', 'متابعة الكبد والجهاز الهضمي', 'الفحص الدوري الشامل'],
-        workingDays: ['السبت', 'الأحد', 'الأربعاء', 'الخميس'],
-        workingHours: '05:00 مساءً - 09:00 مساءً',
-        bio: 'استشاري الباطنية في بورتسودان، يركز على الرعاية الشاملة للأمراض المزمنة والتنسيق المستمر عبر الملف الطبي الإلكتروني.',
-        photoKey: 'male',
-        approvalStatus: 'approved',
-        reviewReason: 'معتمد من لجنة التوثيق المركزية',
-        reviewedByUid: adminUid,
-        ratingAvg: 4.7,
-        ratingCount: 18,
-      },
-      {
-        uid: 'doc_sd_khalid_pending',
-        ownerUid: adminUid,
-        fullName: 'د. خالد عمر البشير',
-        gender: 'male',
-        specialty: 'جراحة العظام والمفاصل',
-        qualifications: 'ماجستير جراحة العظام والكسور - مجلس التخصصات الطبية',
-        experienceYears: 7,
-        licenseNumber: 'SMC-21409',
-        state: 'كسلا',
-        locality: 'كسلا',
-        area: 'الختمية',
-        workplaceName: 'عيادة كسلا التخصصية للعظام',
-        clinicId: '',
-        consultationFeeSdg: 22000,
-        services: ['كسور العظام وإصابات الملاعب', 'آلام المفاصل والعمود الفقري'],
-        workingDays: ['السبت', 'الاثنين', 'الأربعاء'],
-        workingHours: '04:00 عصراً - 08:00 مساءً',
-        bio: 'طبيب جراحة عظام بانتظار المراجعة والاعتماد المركزي لنشر الملف المهني في ولاية كسلا.',
-        photoKey: 'male',
-        approvalStatus: 'pending',
-        reviewReason: '',
-        reviewedByUid: '',
-        ratingAvg: 0,
-        ratingCount: 0,
-      },
-      {
-        uid: 'doc_sd_nada_pending',
-        ownerUid: adminUid,
-        fullName: 'د. ندى حسن الصادق',
-        gender: 'female',
-        specialty: 'أمراض النساء والتوليد',
-        qualifications: 'البورد السوداني في أمراض النساء والتوليد',
-        experienceYears: 8,
-        licenseNumber: 'SMC-19884',
-        state: 'شمال كردفان',
-        locality: 'شيكان (الأبيض)',
-        area: 'حي القبة',
-        workplaceName: 'مستوصف الأبيض التخصصي',
-        clinicId: '',
-        consultationFeeSdg: 19000,
-        services: ['متابعة الحمل والولادة', 'الفحص بالموجات الصوتية', 'صحة المرأة'],
-        workingDays: ['الأحد', 'الثلاثاء', 'الخميس'],
-        workingHours: '10:00 صباحاً - 03:00 عصراً',
-        bio: 'أخصائية النساء والتوليد في مدينة الأبيض بانتظار اعتماد الإدارة المركزية.',
-        photoKey: 'female',
-        approvalStatus: 'pending',
-        reviewReason: '',
-        reviewedByUid: '',
-        ratingAvg: 0,
-        ratingCount: 0,
-      },
-    ];
-
-    for (const d of doctorsSeed) {
-      batch.set(doc(db, 'doctors', d.uid), {
-        ...d,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    await batch.commit();
-
-    await writeAuditLog({
-      actorUid: adminUid,
-      actorName: adminName,
-      actorRole: 'central_admin',
-      action: 'تهيئة البيانات المرجعية للمنصة',
-      targetCollection: 'system',
-      targetId: 'seed_sudan_v1',
-      details: 'إضافة عيادات وأطباء معتمدين وطلبات قيد المراجعة عبر ولايات السودان',
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'seedSudanPlatformData');
   }
 }
 

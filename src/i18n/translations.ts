@@ -644,8 +644,6 @@ export interface TranslationSchema {
     restrictedDesc: string;
     dashboardTitle: string;
     dashboardDesc: string;
-    seedDataBtn: string;
-    seedingData: string;
     kpiDoctors: string;
     kpiClinics: string;
     kpiActivePatients: string;
@@ -1615,8 +1613,6 @@ export const translations: Record<AppLang, TranslationSchema> = {
       restrictedDesc: 'هذه اللوحة مخصصة لمدير المنصة المركزي للتحقق من المستندات، اعتماد الأطباء والعيادات، ومراجعة الشكاوى وسجل التدقيق.',
       dashboardTitle: 'لوحة تحكم الإدارة المركزية',
       dashboardDesc: 'متابعة حية لإحصائيات المنصة عبر ولايات السودان، مراجعة المستندات، اعتماد الأطباء والعيادات، ومراقبة سجل التدقيق.',
-      seedDataBtn: 'تهيئة بيانات الولايات المرجعية',
-      seedingData: 'جاري التهيئة...',
       kpiDoctors: 'الأطباء المسجلون',
       kpiClinics: 'العيادات والمراكز',
       kpiActivePatients: 'المرضى النشطون',
@@ -2584,8 +2580,6 @@ export const translations: Record<AppLang, TranslationSchema> = {
       restrictedDesc: 'This dashboard is dedicated to the platform central administrator to verify credentials, approve doctors and clinics, and inspect complaints and audit logs.',
       dashboardTitle: 'Central Administration Dashboard',
       dashboardDesc: 'Live Sudan-wide platform analytics, credential verification, doctor/clinic approvals, and immutable security audit log.',
-      seedDataBtn: 'Seed Sudan Reference Data',
-      seedingData: 'Seeding...',
       kpiDoctors: 'Registered Doctors',
       kpiClinics: 'Clinics & Centers',
       kpiActivePatients: 'Active Patients',

@@ -4,7 +4,6 @@ import {
   BarChart3,
   Building2,
   CheckCircle2,
-  Database,
   FileSearch,
   History,
   MessageSquareWarning,
@@ -44,7 +43,6 @@ import {
   adminToggleReviewVisibility,
   adminUpdateUserStatus,
   fetchAdminDashboardData,
-  seedSudanPlatformData,
   subscribeAdminDashboardData,
 } from '../lib/firestoreService';
 import { useIsDarkMode } from '../lib/useIsDarkMode';
@@ -86,7 +84,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [reviews, setReviews] = React.useState<ServiceReview[]>([]);
   const [auditLogs, setAuditLogs] = React.useState<AuditLog[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [seeding, setSeeding] = React.useState(false);
   const [feedback, setFeedback] = React.useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   // Reason Modal for Reject / Suspend / Resolve
@@ -188,35 +185,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     userProfile?.displayName ||
     firebaseUser.displayName ||
     (lang === 'en' ? 'Platform Admin' : 'مدير المنصة');
-
-  const handleSeedDemo = async () => {
-    setSeeding(true);
-    setFeedback(null);
-    try {
-      await seedSudanPlatformData(firebaseUser.uid, adminName);
-      await loadAdminData();
-      await onRefreshGlobal();
-      setFeedback({
-        type: 'ok',
-        text:
-          lang === 'en'
-            ? 'Sudan reference states, approved clinics, doctors, and pending review data seeded successfully.'
-            : 'تمت تهيئة بيانات الولايات والعيادات والأطباء المعتمدين وطلبات المراجعة في Firestore بنجاح.',
-      });
-    } catch (err) {
-      setFeedback({
-        type: 'err',
-        text:
-          err instanceof Error
-            ? err.message
-            : lang === 'en'
-            ? 'Failed to seed reference data.'
-            : 'تعذر تهيئة البيانات المرجعية.',
-      });
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const handleApproveDoctorDirect = async (docItem: DoctorProfile) => {
     try {
@@ -443,7 +411,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Header & Seed Trigger */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-100">
@@ -453,15 +421,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {t.admin.dashboardDesc}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleSeedDemo}
-          disabled={seeding}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-teal-700 hover:bg-slate-800 dark:hover:bg-teal-600 text-white text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
-        >
-          <Database className="w-4 h-4" />
-          <span>{seeding ? t.admin.seedingData : t.admin.seedDataBtn}</span>
-        </button>
       </div>
 
       {/* Live Summary KPI Row */}
