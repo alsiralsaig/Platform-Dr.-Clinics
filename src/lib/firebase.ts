@@ -74,8 +74,9 @@ async function testConnection() {
 testConnection();
 
 export async function signInWithGoogle() {
-  googleProvider.setCustomParameters({ prompt: 'select_account' });
-  return signInWithPopup(auth, googleProvider);
+  const { openPhoneLogin } = await import('./phoneAuth');
+  await openPhoneLogin(auth);
+  return auth.currentUser;
 }
 
 export async function signOutAccount() {
