@@ -1,0 +1,26 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "sd.drclinics.main",
+      "sha256_cert_fingerprints": ["33:00:57:30:3C:6B:5B:E9:E3:24:5F:2D:EC:D4:CD:32:45:4A:74:3E:0B:2A:D7:72:35:A2:19:57:44:CB:1F:9B"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "sd.drclinics.provider",
+      "sha256_cert_fingerprints": ["33:00:57:30:3C:6B:5B:E9:E3:24:5F:2D:EC:D4:CD:32:45:4A:74:3E:0B:2A:D7:72:35:A2:19:57:44:CB:1F:9B"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "sd.drclinics.patient",
+      "sha256_cert_fingerprints": ["33:00:57:30:3C:6B:5B:E9:E3:24:5F:2D:EC:D4:CD:32:45:4A:74:3E:0B:2A:D7:72:35:A2:19:57:44:CB:1F:9B"]
+    }
+  }
+]
